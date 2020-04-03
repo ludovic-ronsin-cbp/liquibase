@@ -23,6 +23,7 @@ public class SetNullableGenerator extends AbstractSqlGenerator<SetNullableStatem
     @Override
     public boolean supports(SetNullableStatement statement, Database database) {
         try {
+            // TODO Implement for DB2 iSeries
             if (database instanceof Db2zDatabase || (database instanceof DB2Database) && (database.getDatabaseMajorVersion() > 0 && database.getDatabaseMajorVersion() < 9)) {
                 //"DB2 versions less than 9 or z/OS do not support modifying null constraints";
                 return false;

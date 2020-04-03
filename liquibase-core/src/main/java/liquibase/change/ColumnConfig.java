@@ -1,6 +1,8 @@
 package liquibase.change;
 
 import liquibase.exception.DateParseException;
+import liquibase.logging.LogService;
+import liquibase.logging.Logger;
 import liquibase.parser.core.ParsedNode;
 import liquibase.parser.core.ParsedNodeException;
 import liquibase.resource.ResourceAccessor;
@@ -31,6 +33,9 @@ import java.util.Locale;
  * in all cases.
  */
 public class ColumnConfig extends AbstractLiquibaseSerializable {
+
+    private static final Logger LOG = LogService.getLog(ColumnConfig.class);
+
     private String name;
     private Boolean computed;
     private String type;
@@ -148,6 +153,9 @@ public class ColumnConfig extends AbstractLiquibaseSerializable {
                 for (ForeignKey fk : fks) {
                     if ((fk.getForeignKeyColumns() != null) && (fk.getForeignKeyColumns().size() == 1) && fk
                         .getForeignKeyColumns().get(0).getName().equals(getName())) {
+                        if (fk.getPrimaryKeyColumns().size() == 0) {
+                            LOG.warning("FK has no primary key column ! : " + fk);
+                        }
                         constraints.setForeignKeyName(fk.getName());
                         constraints.setReferences(fk.getPrimaryKeyTable().getName() +
                             "(" +

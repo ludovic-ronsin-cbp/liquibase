@@ -72,9 +72,7 @@ public class DropColumnGenerator extends AbstractSqlGenerator<DropColumnStatemen
     }
 
     private Sql[] generateSingleColumnSql(DropColumnStatement statement, Database database) {
-        if (database instanceof DB2Database) {
-            return new Sql[] {new UnparsedSql("ALTER TABLE " + database.escapeTableName(statement.getCatalogName(), statement.getSchemaName(), statement.getTableName()) + " DROP COLUMN " + database.escapeColumnName(statement.getCatalogName(), statement.getSchemaName(), statement.getTableName(), statement.getColumnName()), getAffectedColumn(statement))};
-        } else if ((database instanceof SybaseDatabase) || (database instanceof SybaseASADatabase) || (database
+        if ((database instanceof SybaseDatabase) || (database instanceof SybaseASADatabase) || (database
             instanceof FirebirdDatabase) || (database instanceof InformixDatabase)) {
             return new Sql[] {new UnparsedSql("ALTER TABLE " + database.escapeTableName(statement.getCatalogName(), statement.getSchemaName(), statement.getTableName()) + " DROP " + database.escapeColumnName(statement.getCatalogName(), statement.getSchemaName(), statement.getTableName(), statement.getColumnName()), getAffectedColumn(statement))};
         }

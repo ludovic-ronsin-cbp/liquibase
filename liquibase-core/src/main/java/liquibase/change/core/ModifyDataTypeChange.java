@@ -5,6 +5,7 @@ import liquibase.change.ChangeMetaData;
 import liquibase.change.DatabaseChange;
 import liquibase.change.DatabaseChangeProperty;
 import liquibase.database.Database;
+import liquibase.database.core.AbstractDb2Database;
 import liquibase.database.core.DB2Database;
 import liquibase.database.core.Db2zDatabase;
 import liquibase.statement.SqlStatement;
@@ -33,7 +34,7 @@ public class ModifyDataTypeChange extends AbstractChange {
     @Override
     public SqlStatement[] generateStatements(Database database) {
         ModifyDataTypeStatement modifyDataTypeStatement = new ModifyDataTypeStatement(getCatalogName(), getSchemaName(), getTableName(), getColumnName(), getNewDataType());
-        if (database instanceof DB2Database) {
+        if (database instanceof AbstractDb2Database) {
             return new SqlStatement[] {
                     modifyDataTypeStatement,
                     new ReorganizeTableStatement(getCatalogName(), getSchemaName(), getTableName())

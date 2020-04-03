@@ -144,7 +144,7 @@ public class SequenceSnapshotGenerator extends JdbcSnapshotGenerator {
     }
 
     protected String getSelectSequenceSql(Schema schema, Database database) {
-        if (database instanceof DB2Database) {
+        if (database instanceof AbstractDb2Database) {
             if (database.getDatabaseProductName().startsWith("DB2 UDB for AS/400")) {
                 return "SELECT SEQNAME AS SEQUENCE_NAME FROM QSYS2.SYSSEQUENCES WHERE SEQSCHEMA = '" + schema.getCatalogName() + "'";
             }

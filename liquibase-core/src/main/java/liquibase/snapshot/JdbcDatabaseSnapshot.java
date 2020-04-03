@@ -660,27 +660,25 @@ public class JdbcDatabaseSnapshot extends DatabaseSnapshot {
 
             @Override
             public List<CachedRow> bulkFetch() throws SQLException, DatabaseException {
+                CatalogAndSchema catalogAndSchema = new CatalogAndSchema(catalogName, schemaName).customize(database);
+                String jdbcSchemaName = ((AbstractJdbcDatabase) database).getJdbcSchemaName(catalogAndSchema);
+                String sql;
                 if (database instanceof OracleDatabase) {
-                    CatalogAndSchema catalogAndSchema = new CatalogAndSchema(catalogName, schemaName).customize(database);
-                    String jdbcSchemaName = ((AbstractJdbcDatabase) database).getJdbcSchemaName(catalogAndSchema);
-                    String sql = getOracleSql(jdbcSchemaName);
-                    return executeAndExtract(sql, database);
-                } else if (database instanceof DB2Database) {
-                    CatalogAndSchema catalogAndSchema = new CatalogAndSchema(catalogName, schemaName).customize(database);
-                    String jdbcSchemaName = ((AbstractJdbcDatabase) database).getJdbcSchemaName(catalogAndSchema);
-                    return executeAndExtract(getDB2Sql(jdbcSchemaName, null), database);
-                } else if (database instanceof Db2zDatabase) {
-                    CatalogAndSchema catalogAndSchema = new CatalogAndSchema(catalogName, schemaName).customize(database);
-                    String jdbcSchemaName = ((AbstractJdbcDatabase) database).getJdbcSchemaName(catalogAndSchema);
-                    return executeAndExtract(getDB2ZOSSql(jdbcSchemaName, null), database);
-                } else if (database instanceof MSSQLDatabase) {
-                    CatalogAndSchema catalogAndSchema = new CatalogAndSchema(catalogName, schemaName).customize(database);
-                    String jdbcSchemaName = ((AbstractJdbcDatabase) database).getJdbcSchemaName(catalogAndSchema);
-                    String sql = getMSSQLSql(jdbcSchemaName, tableName);
-                    return executeAndExtract(sql, database);
+                    sql = getOracleSql(jdbcSchemaName);
+                } else if (database instanceof AbstractDb2Database) {
+                    if (database.getDatabaseProductName().startsWith("DB2 UDB for AS/400")) {
+                        sql = getDB2iSql(jdbcSchemaName, null);
+                    } else if (database instanceof Db2zDatabase) {
+                        sql = getDB2ZOSSql(jdbcSchemaName, null);
+                    } else {
+                        sql = getDB2Sql(jdbcSchemaName, null);
+                    }
+                }  else if (database instanceof MSSQLDatabase) {
+                    sql = getMSSQLSql(jdbcSchemaName, tableName);
                 } else {
                     throw new RuntimeException("Cannot bulk select");
                 }
+                return executeAndExtract(sql, database);
             }
 
           protected String getOracleSql(String jdbcSchemaName) {
@@ -761,6 +759,27 @@ public class JdbcDatabaseSnapshot extends DatabaseSnapshot {
                         "convert(sysname,o2.name)='" + tableName + "' ) or ( convert(sysname,schema_name" +
                         "(o2.schema_id))='" + jdbcSchemaName + "' and convert(sysname,o2.name)='" + tableName +
                         "' )) order by 5, 6, 7, 9, 8";
+            }
+
+            protected String getDB2iSql(String jdbcSchemaName, String tableName) {
+                return "SELECT  " +
+                        "  pktable_cat,  " +
+                        "  pktable_name,  " +
+                        "  pkcolumn_name, " +
+                        "  fktable_cat,  " +
+                        "  fktable_name,  " +
+                        "  fkcolumn_name, " +
+                        "  key_seq,  " +
+                        "  update_rule,  " +
+                        "  delete_rule,  " +
+                        "  fk_name,  " +
+                        "  pk_name,  " +
+                        "  deferrability " +
+                        "FROM " +
+                        "SYSIBM.SQLFOREIGNKEYS " +
+                        "WHERE fktable_schem = '" + jdbcSchemaName + "' " +
+                        (tableName != null ? " AND fktable_name='" + tableName + "' " : "") +
+                        "ORDER BY key_seq";
             }
 
             protected String getDB2Sql(String jdbcSchemaName, String tableName) {
@@ -1079,7 +1098,7 @@ public class JdbcDatabaseSnapshot extends DatabaseSnapshot {
 
         public List<CachedRow> getViews(final String catalogName, final String schemaName, String viewName) throws DatabaseException {
             final String view;
-            if (database instanceof DB2Database) {
+            if (database instanceof AbstractDb2Database) {
               view = database.correctObjectName(viewName, View.class);
             }
             else {
@@ -1467,7 +1486,7 @@ public class JdbcDatabaseSnapshot extends DatabaseSnapshot {
                         if (tableName != null) {
                             sql += " and uc.table_name = '" + tableName + "'";
                         }
-                    } else if (database instanceof DB2Database) {
+                    } else if (database instanceof AbstractDb2Database) {
                         // if we are on DB2 AS400 iSeries
                         if (database.getDatabaseProductName().startsWith("DB2 UDB for AS/400")) {
                             sql = "select constraint_name as constraint_name, table_name as table_name from QSYS2.TABLE_CONSTRAINTS where table_schema='" + jdbcSchemaName + "' and constraint_type='UNIQUE'";

@@ -13,7 +13,9 @@ import liquibase.database.jvm.JdbcConnection;
 import liquibase.exception.DatabaseException;
 import liquibase.exception.DateParseException;
 import liquibase.executor.ExecutorService;
+import liquibase.statement.SqlStatement;
 import liquibase.statement.core.GetViewDefinitionStatement;
+import liquibase.statement.core.RawCallStatement;
 import liquibase.structure.DatabaseObject;
 import liquibase.structure.core.Catalog;
 import liquibase.structure.core.Index;
@@ -33,6 +35,10 @@ public abstract class AbstractDb2Database extends AbstractJdbcDatabase {
         super.sequenceNextValueFunction = "NEXT VALUE FOR %s";
         super.sequenceCurrentValueFunction = "PREVIOUS VALUE FOR %s";
         super.unquotedObjectsAreUppercased=true;
+    }
+
+    public boolean supportsBooleanDataType() {
+        return false;
     }
 
     @Override
@@ -55,7 +61,7 @@ public abstract class AbstractDb2Database extends AbstractJdbcDatabase {
 
     @Override
     public boolean supportsSchemas() {
-        return false;
+        return true;
     }
 
     @Override
@@ -250,5 +256,10 @@ public abstract class AbstractDb2Database extends AbstractJdbcDatabase {
     @Override
     public CatalogAndSchema.CatalogAndSchemaCase getSchemaAndCatalogCase() {
         return CatalogAndSchema.CatalogAndSchemaCase.ORIGINAL_CASE;
+    }
+
+    @Override
+    protected SqlStatement getConnectionSchemaNameCallStatement() {
+        return new RawCallStatement("select rtrim(current schema) from sysibm.sysdummy1");
     }
 }

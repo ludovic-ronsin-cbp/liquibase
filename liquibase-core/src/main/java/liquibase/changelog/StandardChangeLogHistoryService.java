@@ -8,6 +8,7 @@ import liquibase.change.Change;
 import liquibase.change.CheckSum;
 import liquibase.change.ColumnConfig;
 import liquibase.database.Database;
+import liquibase.database.core.AbstractDb2Database;
 import liquibase.database.core.DB2Database;
 import liquibase.database.core.MSSQLDatabase;
 import liquibase.database.core.SQLiteDatabase;
@@ -239,7 +240,7 @@ public class StandardChangeLogHistoryService extends AbstractChangeLogHistorySer
                 executor.comment("Adding missing databasechangelog.deployment_id column");
                 statementsToExecute.add(new AddColumnStatement(getLiquibaseCatalogName(), getLiquibaseSchemaName(),
                     getDatabaseChangeLogTableName(), "DEPLOYMENT_ID", "VARCHAR(10)", null));
-                if (database instanceof DB2Database) {
+                if (database instanceof AbstractDb2Database) {
                     statementsToExecute.add(new ReorganizeTableStatement(getLiquibaseCatalogName(),
                         getLiquibaseSchemaName(), getDatabaseChangeLogTableName()));
                 }

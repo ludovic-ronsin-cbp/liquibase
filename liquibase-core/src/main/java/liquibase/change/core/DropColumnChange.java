@@ -2,6 +2,7 @@ package liquibase.change.core;
 
 import liquibase.change.*;
 import liquibase.database.Database;
+import liquibase.database.core.AbstractDb2Database;
 import liquibase.database.core.DB2Database;
 import liquibase.database.core.Db2zDatabase;
 import liquibase.database.core.SQLiteDatabase;
@@ -140,7 +141,7 @@ public class DropColumnChange extends AbstractChange implements ChangeWithColumn
             statements.add(new DropColumnStatement(dropStatements));
         }
         
-        if (database instanceof DB2Database) {
+        if (database instanceof AbstractDb2Database) {
             statements.add(new ReorganizeTableStatement(getCatalogName(), getSchemaName(), getTableName()));
         }
         
@@ -156,7 +157,7 @@ public class DropColumnChange extends AbstractChange implements ChangeWithColumn
         List<SqlStatement> statements = new ArrayList<>();
         
         statements.add(new DropColumnStatement(getCatalogName(), getSchemaName(), getTableName(), getColumnName()));
-        if (database instanceof DB2Database) {
+        if (database instanceof AbstractDb2Database) {
             statements.add(new ReorganizeTableStatement(getCatalogName(), getSchemaName(), getTableName()));
         }
         

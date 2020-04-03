@@ -6,6 +6,8 @@ import liquibase.database.Database;
 import liquibase.database.core.InformixDatabase;
 import liquibase.database.core.OracleDatabase;
 import liquibase.exception.DatabaseException;
+import liquibase.logging.LogService;
+import liquibase.logging.Logger;
 import liquibase.snapshot.CachedRow;
 import liquibase.snapshot.DatabaseSnapshot;
 import liquibase.snapshot.InvalidExampleException;
@@ -20,6 +22,8 @@ import java.sql.SQLException;
 import java.util.List;
 
 public class ViewSnapshotGenerator extends JdbcSnapshotGenerator {
+
+    private static Logger LOG = LogService.getLog(ViewSnapshotGenerator.class);
 
     public ViewSnapshotGenerator() {
         super(View.class, new Class[] { Schema.class });
@@ -100,7 +104,10 @@ public class ViewSnapshotGenerator extends JdbcSnapshotGenerator {
 
                     view.setDefinition(definition);
                 } catch (DatabaseException e) {
-                    throw new DatabaseException("Error getting " + database.getConnection().getURL() + " view with " + new GetViewDefinitionStatement(view.getSchema().getCatalogName(), view.getSchema().getName(), rawViewName), e);
+                    LOG.warning("Error getting " + database.getConnection().getURL() + " view with " + new GetViewDefinitionStatement(view.getSchema().getCatalogName(),
+                                                                                                                                      view.getSchema().getName(), rawViewName));
+//                    throw new DatabaseException("Error getting " + database.getConnection().getURL() + " view with " + new GetViewDefinitionStatement(view.getSchema().getCatalogName(), view.getSchema().getName(), rawViewName), e);
+                    return null;
                 }
 
                 return view;

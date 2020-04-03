@@ -2,6 +2,7 @@ package liquibase.change.core;
 
 import liquibase.change.*;
 import liquibase.database.Database;
+import liquibase.database.core.AbstractDb2Database;
 import liquibase.database.core.DB2Database;
 import liquibase.snapshot.SnapshotGeneratorFactory;
 import liquibase.statement.SqlStatement;
@@ -150,7 +151,7 @@ public class AddPrimaryKeyChange extends AbstractChange {
         statement.setForIndexCatalogName(getForIndexCatalogName());
         statement.setShouldValidate(shouldValidate);
 
-        if (database instanceof DB2Database) {
+        if (database instanceof AbstractDb2Database) {
             return new SqlStatement[]{
                     statement,
                     new ReorganizeTableStatement(getCatalogName(), getSchemaName(), getTableName())

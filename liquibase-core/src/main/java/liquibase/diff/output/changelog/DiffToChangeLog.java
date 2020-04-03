@@ -480,36 +480,77 @@ public class DiffToChangeLog {
      * Adds dependencies to the graph as schema.object_name.
      */
     protected void addDependencies(DependencyUtil.DependencyGraph<String> graph, List<String> schemas, Database database) throws DatabaseException {
-        if (database instanceof DB2Database) {
-            Executor executor = ExecutorService.getInstance().getExecutor(database);
-            List<Map<String, ?>> rs = executor.queryForList(new RawSqlStatement("select TABSCHEMA, TABNAME, BSCHEMA, BNAME from syscat.tabdep where (" + StringUtils.join(schemas, " OR ", new StringUtils.StringUtilsFormatter<String>() {
-                        @Override
-                        public String toString(String obj) {
-                            return "TABSCHEMA='" + obj + "'";
-                        }
-                    }
-            ) + ")"));
-            for (Map<String, ?> row : rs) {
-                String tabName = StringUtils.trimToNull((String) row.get("TABSCHEMA")) + "." + StringUtils.trimToNull((String) row.get("TABNAME"));
-                String bName = StringUtils.trimToNull((String) row.get("BSCHEMA")) + "." + StringUtils.trimToNull((String) row.get("BNAME"));
+        if (database instanceof AbstractDb2Database) {
+            if (database.getDatabaseProductName().startsWith("DB2 UDB for AS/400")) {
+                String inSchemas = "in (" + StringUtils.join(schemas, ",") + ") ";
+                Executor executor = ExecutorService.getInstance().getExecutor(database);
+                List<Map<String, ?>> rs = executor.queryForList(new RawSqlStatement(
+                                // Tables and Views (Cf. QSYS2.SYSTABLEDEP, QSYS2.SYSVIEWDEP)
+                                "SELECT DISTINCT "
+                                + "  MQ.DBXLB2 as TABSCHEMA, "
+                                + "  MQ.DBXLFI as TABNAME, "
+                                + "  COALESCE(TB.DBXLB2, DEP.DBFLB2) as BSCHEMA, "
+                                + "  COALESCE(TB.DBXLFI, DEP.DBFFIL) as BNAME "
+                                + "FROM QSYS.QADBXREF MQ "
+                                + "  INNER JOIN QSYS.QADBFDEP DEP ON MQ.DBXFIL = DEP.DBFFDP AND MQ.DBXLIB = DEP.DBFLDP "
+                                + "  LEFT OUTER JOIN QSYS.QADBXREF TB ON TB.DBXFIL = DEP.DBFFIL AND TB.DBXLIB = DEP.DBFLIB "
+                                + "WHERE MQ.DBXLB2 " + inSchemas
+                                + "  OR TB.DBXLB2 " + inSchemas
+                                + "  OR DEP.DBFLB2 " + inSchemas
 
-                graph.add(bName, tabName);
-            }
-        } else if (database instanceof Db2zDatabase) {
-            Executor executor = ExecutorService.getInstance().getExecutor(database);
-            String db2ZosSql = "SELECT DSCHEMA AS TABSCHEMA, DNAME AS TABNAME, BSCHEMA, BNAME FROM SYSIBM.SYSDEPENDENCIES WHERE (" + StringUtils.join(schemas, " OR ", new StringUtils.StringUtilsFormatter<String>() {
-                        @Override
-                        public String toString(String obj) {
-                            return "DSCHEMA='" + obj + "'";
-                        }
-                    }
-            ) + ")";
-            List<Map<String, ?>> rs = executor.queryForList(new RawSqlStatement(db2ZosSql));
-            for (Map<String, ?> row : rs) {
-                String tabName = StringUtils.trimToNull((String) row.get("TABSCHEMA")) + "." + StringUtils.trimToNull((String) row.get("TABNAME"));
-                String bName = StringUtils.trimToNull((String) row.get("BSCHEMA")) + "." + StringUtils.trimToNull((String) row.get("BNAME"));
+//                                + "UNION "
+//
+//                                // Constaints (Cf. QSYS2.SYSCSTDEP)
+//                                + "SELECT DBXLB2 as TABSCHEMA, "
+//                                + "  DBXLFI as TABNAME, "
+//                                + "  DBCCN2 as BSCHEMA, "
+//                                + "  DBCCNM as BNAME "
+//                                + "FROM QSYS.QADBFCST, "
+//                                + "  QSYS.QADBXREF "
+//                                + "WHERE DBCCFF = DBXFIL "
+//                                + "  AND DBCCFL = DBXLIB "
+//                                //        + "--   AND DBCCLAIM = 'A' "
+//                                + "  AND DBXLB2 = '" + inSchemas
 
-                graph.add(bName, tabName);
+                ));
+                for (Map<String, ?> row : rs) {
+                    String tabName = StringUtils.trimToNull((String) row.get("TABSCHEMA")) + "." + StringUtils.trimToNull((String) row.get("TABNAME"));
+                    String bName = StringUtils.trimToNull((String) row.get("BSCHEMA")) + "." + StringUtils.trimToNull((String) row.get("BNAME"));
+
+                    graph.add(bName, tabName);
+                }
+            } else if (database instanceof DB2Database) {
+                Executor executor = ExecutorService.getInstance().getExecutor(database);
+                List<Map<String, ?>> rs = executor.queryForList(new RawSqlStatement("select TABSCHEMA, TABNAME, BSCHEMA, BNAME from syscat.tabdep where (" + StringUtils.join(schemas, " OR ", new StringUtils.StringUtilsFormatter<String>() {
+                                                                                                                      @Override
+                                                                                                                      public String toString(String obj) {
+                                                                                                                          return "TABSCHEMA='" + obj + "'";
+                                                                                                                      }
+                                                                                                                  }
+                                                                                                                 ) + ")"));
+                for (Map<String, ?> row : rs) {
+                    String tabName = StringUtils.trimToNull((String) row.get("TABSCHEMA")) + "." + StringUtils.trimToNull((String) row.get("TABNAME"));
+                    String bName = StringUtils.trimToNull((String) row.get("BSCHEMA")) + "." + StringUtils.trimToNull((String) row.get("BNAME"));
+
+                    graph.add(bName, tabName);
+                }
+            } else if (database instanceof Db2zDatabase) {
+                Executor executor = ExecutorService.getInstance().getExecutor(database);
+                String db2ZosSql = "SELECT DSCHEMA AS TABSCHEMA, DNAME AS TABNAME, BSCHEMA, BNAME FROM SYSIBM.SYSDEPENDENCIES WHERE (" + StringUtils
+                        .join(schemas, " OR ", new StringUtils.StringUtilsFormatter<String>() {
+                                  @Override
+                                  public String toString(String obj) {
+                                      return "DSCHEMA='" + obj + "'";
+                                  }
+                              }
+                             ) + ")";
+                List<Map<String, ?>> rs = executor.queryForList(new RawSqlStatement(db2ZosSql));
+                for (Map<String, ?> row : rs) {
+                    String tabName = StringUtils.trimToNull((String) row.get("TABSCHEMA")) + "." + StringUtils.trimToNull((String) row.get("TABNAME"));
+                    String bName = StringUtils.trimToNull((String) row.get("BSCHEMA")) + "." + StringUtils.trimToNull((String) row.get("BNAME"));
+
+                    graph.add(bName, tabName);
+                }
             }
         } else if (database instanceof OracleDatabase) {
             Executor executor = ExecutorService.getInstance().getExecutor(database);

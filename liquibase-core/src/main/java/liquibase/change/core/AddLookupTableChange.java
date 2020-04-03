@@ -6,6 +6,7 @@ import java.util.List;
 
 import liquibase.change.*;
 import liquibase.database.Database;
+import liquibase.database.core.AbstractDb2Database;
 import liquibase.database.core.DB2Database;
 import liquibase.database.core.Db2zDatabase;
 import liquibase.database.core.HsqlDatabase;
@@ -204,7 +205,7 @@ public class AddLookupTableChange extends AbstractChange {
                     tableStatement,
                     new RawSqlStatement("INSERT INTO " + database.escapeTableName(newTableCatalogName, newTableSchemaName, getNewTableName()) + " SELECT DISTINCT " + database.escapeObjectName(getExistingColumnName(), Column.class) + " FROM " + database.escapeTableName(existingTableCatalogName, existingTableSchemaName, getExistingTableName()) + " WHERE " + database.escapeObjectName(getExistingColumnName(), Column.class) + " IS NOT NULL"),
             };
-        } else if (database instanceof DB2Database) {
+        } else if (database instanceof AbstractDb2Database) {
             createTablesSQL = new SqlStatement[]{
                     new RawSqlStatement("CREATE TABLE " + database.escapeTableName(newTableCatalogName, newTableSchemaName, getNewTableName()) + " AS (SELECT " + database.escapeObjectName(getExistingColumnName(), Column.class) + " AS " + database.escapeObjectName(getNewColumnName(), Column.class) + " FROM " + database.escapeTableName(existingTableCatalogName, existingTableSchemaName, getExistingTableName()) + ") WITH NO DATA"),
                     new RawSqlStatement("INSERT INTO " + database.escapeTableName(newTableCatalogName, newTableSchemaName, getNewTableName()) + " SELECT DISTINCT " + database.escapeObjectName(getExistingColumnName(), Column.class) + " FROM " + database.escapeTableName(existingTableCatalogName, existingTableSchemaName, getExistingTableName()) + " WHERE " + database.escapeObjectName(getExistingColumnName(), Column.class) + " IS NOT NULL"),
@@ -227,7 +228,7 @@ public class AddLookupTableChange extends AbstractChange {
             statements.addAll(Arrays.asList(addNotNullChange.generateStatements(database)));
         }
 
-        if (database instanceof DB2Database) {
+        if (database instanceof AbstractDb2Database) {
             statements.add(new ReorganizeTableStatement(newTableCatalogName, newTableSchemaName, getNewTableName()));
         }
 
@@ -237,7 +238,7 @@ public class AddLookupTableChange extends AbstractChange {
         addPKChange.setColumnNames(getNewColumnName());
         statements.addAll(Arrays.asList(addPKChange.generateStatements(database)));
 
-        if (database instanceof DB2Database) {
+        if (database instanceof AbstractDb2Database) {
             statements.add(new ReorganizeTableStatement(newTableCatalogName,newTableSchemaName, getNewTableName()));
         }
 

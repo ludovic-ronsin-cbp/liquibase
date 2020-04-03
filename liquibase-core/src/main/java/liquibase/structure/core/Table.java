@@ -73,6 +73,9 @@ public class Table extends Relation {
 
     @Override
     public String toString() {
+        if(getSchema() != null) {
+            return getSchema() + "." + getName();
+        }
         return getName();
     }
 

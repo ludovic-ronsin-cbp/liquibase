@@ -114,7 +114,7 @@ public class IndexSnapshotGenerator extends JdbcSnapshotGenerator {
             }
         }
         if ((foundObject instanceof UniqueConstraint) && (((UniqueConstraint) foundObject).getBackingIndex() == null)
-                && !(snapshot.getDatabase() instanceof DB2Database) && !(snapshot.getDatabase() instanceof DerbyDatabase)) {
+                && !(snapshot.getDatabase() instanceof AbstractDb2Database) && !(snapshot.getDatabase() instanceof DerbyDatabase)) {
             Index exampleIndex = new Index().setRelation(((UniqueConstraint) foundObject).getRelation());
             exampleIndex.getColumns().addAll(((UniqueConstraint) foundObject).getColumns());
             ((UniqueConstraint) foundObject).setBackingIndex(exampleIndex);

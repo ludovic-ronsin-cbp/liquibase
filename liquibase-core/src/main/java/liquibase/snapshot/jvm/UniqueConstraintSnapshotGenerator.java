@@ -210,7 +210,7 @@ public class UniqueConstraintSnapshotGenerator extends JdbcSnapshotGenerator {
                         "ucc.owner='" + database.correctObjectName(schema.getCatalogName(), Catalog.class) + "' " +
                         "and ucc.table_name not like 'BIN$%' "+
                         "order by ucc.position";
-            } else if (database instanceof DB2Database) {
+            } else if (database instanceof AbstractDb2Database) {
                 if (database.getDatabaseProductName().startsWith("DB2 UDB for AS/400")) {
                     sql = "select T1.constraint_name as CONSTRAINT_NAME, T2.COLUMN_NAME as COLUMN_NAME from QSYS2.TABLE_CONSTRAINTS T1, QSYS2.SYSCSTCOL T2\n"
                             + "where T1.CONSTRAINT_TYPE='UNIQUE' and T1.CONSTRAINT_NAME=T2.CONSTRAINT_NAME\n"

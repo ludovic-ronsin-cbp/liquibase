@@ -5,13 +5,31 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import liquibase.CatalogAndSchema;
 import liquibase.database.AbstractJdbcDatabase;
 import liquibase.database.Database;
 import liquibase.database.DatabaseConnection;
-import liquibase.database.core.*;
+import liquibase.database.core.AbstractDb2Database;
+import liquibase.database.core.Db2zDatabase;
+import liquibase.database.core.DerbyDatabase;
+import liquibase.database.core.FirebirdDatabase;
+import liquibase.database.core.HsqlDatabase;
+import liquibase.database.core.InformixDatabase;
+import liquibase.database.core.Ingres9Database;
+import liquibase.database.core.MSSQLDatabase;
+import liquibase.database.core.MariaDBDatabase;
+import liquibase.database.core.MySQLDatabase;
+import liquibase.database.core.OracleDatabase;
+import liquibase.database.core.PostgresDatabase;
+import liquibase.database.core.SybaseASADatabase;
+import liquibase.database.core.SybaseDatabase;
 import liquibase.database.jvm.JdbcConnection;
 import liquibase.exception.DatabaseException;
 import liquibase.executor.jvm.ColumnMapRowMapper;
@@ -193,6 +211,32 @@ public class JdbcDatabaseSnapshot extends DatabaseSnapshot {
 
                         returnList.addAll(executeAndExtract(sql, database));
 
+                    } else if (database instanceof AbstractDb2Database && database.getDatabaseProductName().startsWith("DB2 UDB for AS/400")) {
+                        // Cf. https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_74/db2/rbafzcatsysindex.htm
+                        // Cf. https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_74/db2/rbafzcatsyskeys.htm
+                        String sql =
+                                "SELECT i.INDEX_SCHEMA AS TABLE_SCHEM, " + // TODO Check if INDEX_SCHEMA or TABLE_SCHEMA (db2/z request (see below) uses CREATOR column which is the index of the schema)
+                                        "i.TABLE_NAME, " +
+                                        "i.INDEX_NAME, " +
+                                        "3 AS TYPE, " +
+                                        "k.COLUMN_NAME, " +
+                                        "k.ORDINAL_POSITION, " +
+                                        "CASE UNIQUERULE WHEN 'D' then 1 else 0 end as NON_UNIQUE, " +
+                                        "k.ORDERING AS ORDER, " +
+                                        "i.INDEX_SCHEMA AS INDEX_QUALIFIER " + //TODO INDEX_NAME ?
+                                        "FROM QSYS2.SYSKEYS k " +
+                                        "JOIN QSYS2.SYSINDEXES i ON k.INDEX_NAME = i.INDEX_NAME " +
+                                        "WHERE  i.INDEX_SCHEMA = '" + database.correctObjectName(catalogAndSchema.getSchemaName(), Schema.class) + "'";
+                        if (!isBulkFetchMode) {
+                            if (tableName != null) {
+                                sql += " AND i.TABLE_NAME='" + database.escapeStringForDatabase(tableName) + "'";
+                            }
+                            if (indexName != null) {
+                                sql += " AND i.INDEX_NAME='" + database.escapeStringForDatabase(indexName) + "'";
+                            }
+                        }
+                        sql += " ORDER BY i.INDEX_NAME, k.ORDINAL_POSITION";
+                        returnList.addAll(executeAndExtract(sql, database));
                     } else if (database instanceof Db2zDatabase) {
                         String sql = "SELECT i.CREATOR AS TABLE_SCHEM, " +
                                 "i.TBNAME AS TABLE_NAME, " +
@@ -633,10 +677,14 @@ public class JdbcDatabaseSnapshot extends DatabaseSnapshot {
                 String jdbcCatalogName = ((AbstractJdbcDatabase) database).getJdbcCatalogName(catalogAndSchema);
                 String jdbcSchemaName = ((AbstractJdbcDatabase) database).getJdbcSchemaName(catalogAndSchema);
 
-                if (database instanceof DB2Database) {
-                    return executeAndExtract(getDB2Sql(jdbcSchemaName, tableName), database);
-                } else if (database instanceof Db2zDatabase) {
-                    return executeAndExtract(getDB2ZOSSql(jdbcSchemaName, tableName), database);
+                if (database instanceof AbstractDb2Database) {
+                    if (database.getDatabaseProductName().startsWith("DB2 UDB for AS/400")) {
+                        return executeAndExtract(getDB2iSql(jdbcSchemaName, tableName), database);
+                    } else if (database instanceof Db2zDatabase) {
+                        return executeAndExtract(getDB2ZOSSql(jdbcSchemaName, tableName), database);
+                    } else {
+                        return executeAndExtract(getDB2Sql(jdbcSchemaName, tableName), database);
+                    }
                 } else {
                     if (tableName == null) {
                         for (CachedRow row : getTables(jdbcCatalogName, jdbcSchemaName, null)) {
@@ -762,11 +810,12 @@ public class JdbcDatabaseSnapshot extends DatabaseSnapshot {
             }
 
             protected String getDB2iSql(String jdbcSchemaName, String tableName) {
+                // Cf. https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_74/db2/rbafzcatsqlforeignkeys.htm
                 return "SELECT  " +
-                        "  pktable_cat,  " +
+                        "  pktable_schem as pktable_cat,  " + // Catalog not fully managed, should be pktable_cat
                         "  pktable_name,  " +
                         "  pkcolumn_name, " +
-                        "  fktable_cat,  " +
+                        "  fktable_schem as fktable_cat,  " + // Catalog not fully managed, should be fktable_cat
                         "  fktable_name,  " +
                         "  fkcolumn_name, " +
                         "  key_seq,  " +

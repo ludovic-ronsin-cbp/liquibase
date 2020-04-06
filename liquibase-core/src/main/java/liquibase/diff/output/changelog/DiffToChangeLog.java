@@ -1,8 +1,35 @@
 package liquibase.diff.output.changelog;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.RandomAccessFile;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
+
+import javax.xml.parsers.ParserConfigurationException;
+
 import liquibase.Scope;
 import liquibase.change.Change;
-import liquibase.change.core.*;
+import liquibase.change.core.DeleteDataChange;
+import liquibase.change.core.InsertDataChange;
+import liquibase.change.core.LoadDataChange;
+import liquibase.change.core.RawSQLChange;
+import liquibase.change.core.UpdateDataChange;
 import liquibase.changelog.ChangeSet;
 import liquibase.configuration.GlobalConfiguration;
 import liquibase.configuration.LiquibaseConfiguration;
@@ -10,7 +37,12 @@ import liquibase.database.AbstractJdbcDatabase;
 import liquibase.database.Database;
 import liquibase.database.ObjectQuotingStrategy;
 import liquibase.database.OfflineConnection;
-import liquibase.database.core.*;
+import liquibase.database.core.AbstractDb2Database;
+import liquibase.database.core.DB2Database;
+import liquibase.database.core.Db2zDatabase;
+import liquibase.database.core.MSSQLDatabase;
+import liquibase.database.core.OracleDatabase;
+import liquibase.database.core.PostgresDatabase;
 import liquibase.diff.DiffResult;
 import liquibase.diff.ObjectDifferences;
 import liquibase.diff.compare.CompareControl;
@@ -31,11 +63,6 @@ import liquibase.structure.core.Column;
 import liquibase.structure.core.StoredDatabaseLogic;
 import liquibase.util.DependencyUtil;
 import liquibase.util.StringUtils;
-
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.*;
-import java.text.SimpleDateFormat;
-import java.util.*;
 
 public class DiffToChangeLog {
 
@@ -498,19 +525,19 @@ public class DiffToChangeLog {
                                 + "  OR TB.DBXLB2 " + inSchemas
                                 + "  OR DEP.DBFLB2 " + inSchemas
 
-//                                + "UNION "
-//
-//                                // Constaints (Cf. QSYS2.SYSCSTDEP)
-//                                + "SELECT DBXLB2 as TABSCHEMA, "
-//                                + "  DBXLFI as TABNAME, "
-//                                + "  DBCCN2 as BSCHEMA, "
-//                                + "  DBCCNM as BNAME "
-//                                + "FROM QSYS.QADBFCST, "
-//                                + "  QSYS.QADBXREF "
-//                                + "WHERE DBCCFF = DBXFIL "
-//                                + "  AND DBCCFL = DBXLIB "
-//                                //        + "--   AND DBCCLAIM = 'A' "
-//                                + "  AND DBXLB2 = '" + inSchemas
+                                + "UNION "
+
+                                // Constaints (Cf. QSYS2.SYSCSTDEP)
+                                + "SELECT DBXLB2 as TABSCHEMA, "
+                                + "  DBXLFI as TABNAME, "
+                                + "  DBCCN2 as BSCHEMA, "
+                                + "  DBCCNM as BNAME "
+                                + "FROM QSYS.QADBFCST, "
+                                + "  QSYS.QADBXREF "
+                                + "WHERE DBCCFF = DBXFIL "
+                                + "  AND DBCCFL = DBXLIB "
+                                //        + "--   AND DBCCLAIM = 'A' "
+                                + "  AND DBXLB2 = '" + inSchemas
 
                 ));
                 for (Map<String, ?> row : rs) {

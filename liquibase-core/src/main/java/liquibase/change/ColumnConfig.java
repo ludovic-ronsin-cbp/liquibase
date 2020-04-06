@@ -1,5 +1,12 @@
 package liquibase.change;
 
+import java.math.BigInteger;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+
 import liquibase.exception.DateParseException;
 import liquibase.logging.LogService;
 import liquibase.logging.Logger;
@@ -17,14 +24,11 @@ import liquibase.structure.core.ForeignKey;
 import liquibase.structure.core.PrimaryKey;
 import liquibase.structure.core.Table;
 import liquibase.structure.core.UniqueConstraint;
-import liquibase.util.*;
-
-import java.math.BigInteger;
-import java.text.NumberFormat;
-import java.text.ParseException;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
+import liquibase.util.BooleanUtils;
+import liquibase.util.ISODateFormat;
+import liquibase.util.NowAndTodayUtil;
+import liquibase.util.ObjectUtil;
+import liquibase.util.StringUtils;
 
 /**
  * The standard configuration used by Change classes to represent a column.
@@ -34,7 +38,8 @@ import java.util.Locale;
  */
 public class ColumnConfig extends AbstractLiquibaseSerializable {
 
-    private static final Logger LOG = LogService.getLog(ColumnConfig.class);
+    // Error with groovy serializer if static
+    protected Logger LOG = LogService.getLog(ColumnConfig.class);
 
     private String name;
     private Boolean computed;
@@ -153,14 +158,15 @@ public class ColumnConfig extends AbstractLiquibaseSerializable {
                 for (ForeignKey fk : fks) {
                     if ((fk.getForeignKeyColumns() != null) && (fk.getForeignKeyColumns().size() == 1) && fk
                         .getForeignKeyColumns().get(0).getName().equals(getName())) {
+                        constraints.setForeignKeyName(fk.getName());
+                        String pkColName;
                         if (fk.getPrimaryKeyColumns().size() == 0) {
                             LOG.warning("FK has no primary key column ! : " + fk);
+                            pkColName = "";
+                        } else {
+                            pkColName = fk.getPrimaryKeyColumns().get(0).getName();
                         }
-                        constraints.setForeignKeyName(fk.getName());
-                        constraints.setReferences(fk.getPrimaryKeyTable().getName() +
-                            "(" +
-                            fk.getPrimaryKeyColumns().get(0).getName() +
-                            ")");
+                        constraints.setReferences(fk.getPrimaryKeyTable().getName() + "(" + pkColName + ")");
                         nonDefaultConstraints = true;
                     }
                 }

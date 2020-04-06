@@ -23,11 +23,6 @@ import liquibase.structure.core.Schema;
 import liquibase.util.JdbcUtils;
 import liquibase.util.StringUtils;
 
-import java.sql.ResultSet;
-import java.sql.Statement;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-
 public abstract class AbstractDb2Database extends AbstractJdbcDatabase {
 
     public AbstractDb2Database() {
@@ -66,7 +61,7 @@ public abstract class AbstractDb2Database extends AbstractJdbcDatabase {
 
     @Override
     public boolean supportsCatalogs() {
-        return true;
+        return true; // false ?
     }
 
     @Override

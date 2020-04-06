@@ -25,4 +25,13 @@ GetViewDefinitionStatement extends AbstractSqlStatement {
     public String getViewName() {
         return viewName;
     }
+
+    @Override
+    public String toString() {
+        return "GetViewDefinitionStatement{" +
+                "catalogName='" + catalogName + '\'' +
+                ", schemaName='" + schemaName + '\'' +
+                ", viewName='" + viewName + '\'' +
+                '}';
+    }
 }

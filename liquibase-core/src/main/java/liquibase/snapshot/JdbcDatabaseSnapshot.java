@@ -812,10 +812,12 @@ public class JdbcDatabaseSnapshot extends DatabaseSnapshot {
             protected String getDB2iSql(String jdbcSchemaName, String tableName) {
                 // Cf. https://www.ibm.com/support/knowledgecenter/en/ssw_ibm_i_74/db2/rbafzcatsqlforeignkeys.htm
                 return "SELECT  " +
-                        "  pktable_schem as pktable_cat,  " + // Catalog not fully managed, should be pktable_cat
+                        "  pktable_cat,  " +
+                        "  pktable_schem,  " +
                         "  pktable_name,  " +
                         "  pkcolumn_name, " +
-                        "  fktable_schem as fktable_cat,  " + // Catalog not fully managed, should be fktable_cat
+                        "  fktable_cat,  " +
+                        "  fktable_schem,  " +
                         "  fktable_name,  " +
                         "  fkcolumn_name, " +
                         "  key_seq,  " +

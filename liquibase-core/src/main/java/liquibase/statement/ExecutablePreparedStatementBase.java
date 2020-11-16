@@ -1,6 +1,31 @@
 package liquibase.statement;
 
+import static java.util.ResourceBundle.getBundle;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.Closeable;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.ResourceBundle;
+import java.util.Set;
+import java.util.UUID;
+
 import liquibase.change.ColumnConfig;
+import liquibase.change.core.LoadDataChange;
 import liquibase.changelog.ChangeSet;
 import liquibase.database.Database;
 import liquibase.database.PreparedStatementFactory;
@@ -15,18 +40,6 @@ import liquibase.util.JdbcUtils;
 import liquibase.util.StreamUtil;
 import liquibase.util.StringUtils;
 import liquibase.util.file.FilenameUtils;
-
-import java.io.*;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.util.*;
-
-import static java.util.ResourceBundle.getBundle;
-import liquibase.change.core.LoadDataChange;
 
 public abstract class ExecutablePreparedStatementBase implements ExecutablePreparedStatement {
 
@@ -80,10 +93,14 @@ public abstract class ExecutablePreparedStatementBase implements ExecutablePrepa
         PreparedStatement stmt = factory.create(sql);
 
         try {
-            attachParams(cols, stmt);
-            // trigger execution
-            executePreparedStatement(stmt);
+            attachParams(getColumns(), stmt);
+            if (!(stmt instanceof BatchDmlExecutablePreparedStatement)) {
+                executePreparedStatement(stmt);
+            }
         } catch (SQLException e) {
+            if (e.getNextException() != null) {
+                throw new DatabaseException(e.getMessage() + " => " + e.getNextException().getMessage(), e.getNextException());
+            }
             throw new DatabaseException(e);
         } finally {
             for (Closeable closeable : closeables) {
@@ -201,7 +218,7 @@ public abstract class ExecutablePreparedStatementBase implements ExecutablePrepa
         } else {
             // NULL values might intentionally be set into a change, we must also add them to the prepared statement
             LOG.debug(LogType.LOG, "value is explicit null");
-            stmt.setNull(i, java.sql.Types.NULL);
+            stmt.setNull(i, Types.CHAR); // NULL Not supported by some DBs. Should give the real column type instead of a hardcoded and fixed one
         }
     }
 

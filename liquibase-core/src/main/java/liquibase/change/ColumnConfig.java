@@ -39,7 +39,7 @@ import liquibase.util.StringUtils;
 public class ColumnConfig extends AbstractLiquibaseSerializable {
 
     // Error with groovy serializer if static
-    protected Logger LOG = LogService.getLog(ColumnConfig.class);
+    private static final Logger LOG = LogService.getLog(ColumnConfig.class);
 
     private String name;
     private Boolean computed;

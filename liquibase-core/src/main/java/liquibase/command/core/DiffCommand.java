@@ -1,30 +1,28 @@
 package liquibase.command.core;
 
+import java.io.PrintStream;
+import java.util.Set;
+
 import liquibase.CatalogAndSchema;
-import liquibase.Scope;
 import liquibase.command.AbstractCommand;
 import liquibase.command.CommandResult;
 import liquibase.command.CommandValidationErrors;
 import liquibase.database.Database;
 import liquibase.database.ObjectQuotingStrategy;
-import liquibase.database.core.DB2Database;
-import liquibase.database.core.MSSQLDatabase;
-import liquibase.database.core.OracleDatabase;
-import liquibase.database.core.PostgresDatabase;
 import liquibase.diff.DiffGeneratorFactory;
 import liquibase.diff.DiffResult;
 import liquibase.diff.compare.CompareControl;
 import liquibase.diff.output.ObjectChangeFilter;
 import liquibase.diff.output.report.DiffToReport;
 import liquibase.exception.DatabaseException;
-import liquibase.license.LicenseServiceUtils;
-import liquibase.snapshot.*;
+import liquibase.snapshot.DatabaseSnapshot;
+import liquibase.snapshot.InvalidExampleException;
+import liquibase.snapshot.SnapshotControl;
+import liquibase.snapshot.SnapshotGeneratorFactory;
+import liquibase.snapshot.SnapshotListener;
 import liquibase.structure.DatabaseObject;
 import liquibase.structure.core.DatabaseObjectFactory;
 import liquibase.util.StringUtils;
-
-import java.io.PrintStream;
-import java.util.Set;
 
 public class DiffCommand extends AbstractCommand<CommandResult> {
 
@@ -206,7 +204,7 @@ public class DiffCommand extends AbstractCommand<CommandResult> {
             int i = 0;
             for (CompareControl.SchemaComparison comparison : compareControl.getSchemaComparisons()) {
                 CatalogAndSchema schema;
-                if (referenceDatabase.supportsSchemas()) {
+                if (referenceDatabase.supportsCatalogs()) {
                     schema = new CatalogAndSchema(referenceDatabase.getDefaultCatalogName(), comparison.getReferenceSchema().getSchemaName());
                 } else {
                     schema = new CatalogAndSchema(comparison.getReferenceSchema().getSchemaName(), comparison.getReferenceSchema().getSchemaName());

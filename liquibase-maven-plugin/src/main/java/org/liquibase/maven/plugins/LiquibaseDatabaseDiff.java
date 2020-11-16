@@ -2,6 +2,15 @@
 // Copyright: Copyright(c) 2008 Trace Financial Limited
 package org.liquibase.maven.plugins;
 
+import java.io.File;
+import java.io.IOException;
+
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.wagon.authentication.AuthenticationInfo;
+
 import liquibase.CatalogAndSchema;
 import liquibase.Liquibase;
 import liquibase.database.Database;
@@ -13,13 +22,6 @@ import liquibase.exception.UnexpectedLiquibaseException;
 import liquibase.integration.commandline.CommandLineUtils;
 import liquibase.resource.ResourceAccessor;
 import liquibase.util.StringUtils;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.wagon.authentication.AuthenticationInfo;
-
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.File;
-import java.io.IOException;
 
 /**
  * <p>Generates a diff between the specified database and the reference database.
@@ -124,6 +126,13 @@ public class LiquibaseDatabaseDiff extends AbstractLiquibaseChangeLogMojo {
      */
     private String referenceServer;
 
+    /**
+     * Directory where insert statement csv files will be kept.
+     *
+     * @parameter property="liquibase.dataDir"
+     */
+    protected String dataDir;
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
     	if(referenceServer!=null) {
@@ -174,7 +183,7 @@ public class LiquibaseDatabaseDiff extends AbstractLiquibaseChangeLogMojo {
             try {
                 DiffOutputControl diffOutputControl = new DiffOutputControl(diffIncludeCatalog, diffIncludeSchema, diffIncludeTablespace, null).addIncludedSchema(new CatalogAndSchema(referenceDefaultCatalogName, referenceDefaultSchemaName));
                 diffOutputControl.setObjectChangeFilter(objectChangeFilter);
-                CommandLineUtils.doDiffToChangeLog(diffChangeLogFile, referenceDatabase, db, diffOutputControl, objectChangeFilter, StringUtils.trimToNull(diffTypes));
+                CommandLineUtils.doDiffToChangeLog(diffChangeLogFile, referenceDatabase, db, StringUtils.trimToNull(dataDir), diffOutputControl, objectChangeFilter, StringUtils.trimToNull(diffTypes));
                 if (new File(diffChangeLogFile).exists()) {
                     getLog().info("Differences written to Change Log File, " + diffChangeLogFile);
                 }

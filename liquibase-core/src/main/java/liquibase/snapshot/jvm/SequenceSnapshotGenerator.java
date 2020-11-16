@@ -1,8 +1,22 @@
 package liquibase.snapshot.jvm;
 
+import java.math.BigInteger;
+import java.util.List;
+import java.util.Map;
+
 import liquibase.CatalogAndSchema;
 import liquibase.database.Database;
-import liquibase.database.core.*;
+import liquibase.database.core.AbstractDb2Database;
+import liquibase.database.core.Db2zDatabase;
+import liquibase.database.core.DerbyDatabase;
+import liquibase.database.core.FirebirdDatabase;
+import liquibase.database.core.H2Database;
+import liquibase.database.core.HsqlDatabase;
+import liquibase.database.core.InformixDatabase;
+import liquibase.database.core.MSSQLDatabase;
+import liquibase.database.core.OracleDatabase;
+import liquibase.database.core.PostgresDatabase;
+import liquibase.database.core.SybaseASADatabase;
 import liquibase.exception.DatabaseException;
 import liquibase.exception.UnexpectedLiquibaseException;
 import liquibase.executor.ExecutorService;
@@ -15,10 +29,6 @@ import liquibase.statement.core.RawSqlStatement;
 import liquibase.structure.DatabaseObject;
 import liquibase.structure.core.Schema;
 import liquibase.structure.core.Sequence;
-
-import java.math.BigInteger;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Snapshot generator for a SEQUENCE object in a JDBC-accessible database
@@ -146,7 +156,7 @@ public class SequenceSnapshotGenerator extends JdbcSnapshotGenerator {
     protected String getSelectSequenceSql(Schema schema, Database database) {
         if (database instanceof AbstractDb2Database) {
             if (database.getDatabaseProductName().startsWith("DB2 UDB for AS/400")) {
-                return "SELECT SEQNAME AS SEQUENCE_NAME FROM QSYS2.SYSSEQUENCES WHERE SEQSCHEMA = '" + schema.getCatalogName() + "'";
+                return "SELECT SEQNAME AS SEQUENCE_NAME FROM QSYS2.SYSSEQUENCES WHERE SEQSCHEMA = '" + schema.getName() + "'";
             }
             return "SELECT SEQNAME AS SEQUENCE_NAME FROM SYSCAT.SEQUENCES WHERE SEQTYPE='S' AND SEQSCHEMA = '" + schema.getCatalogName() + "'";
         } else if (database instanceof Db2zDatabase) {

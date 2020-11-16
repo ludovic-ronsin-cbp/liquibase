@@ -1,5 +1,18 @@
 package liquibase.snapshot;
 
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 import liquibase.CatalogAndSchema;
 import liquibase.configuration.GlobalConfiguration;
 import liquibase.configuration.LiquibaseConfiguration;
@@ -19,15 +32,17 @@ import liquibase.resource.ResourceAccessor;
 import liquibase.serializer.LiquibaseSerializable;
 import liquibase.structure.DatabaseObject;
 import liquibase.structure.DatabaseObjectCollection;
-import liquibase.structure.core.*;
+import liquibase.structure.core.Catalog;
+import liquibase.structure.core.Column;
+import liquibase.structure.core.ForeignKey;
+import liquibase.structure.core.Index;
+import liquibase.structure.core.PrimaryKey;
+import liquibase.structure.core.Schema;
+import liquibase.structure.core.UniqueConstraint;
 import liquibase.util.BooleanUtils;
 import liquibase.util.ISODateFormat;
 import liquibase.util.ObjectUtil;
 import liquibase.util.StringUtils;
-
-import java.sql.Timestamp;
-import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 public abstract class DatabaseSnapshot implements LiquibaseSerializable {
 
@@ -360,6 +375,18 @@ public abstract class DatabaseSnapshot implements LiquibaseSerializable {
                     if (BooleanUtils.isTrue(column.getDescending()) || columnName.endsWith(" ASC") || columnName.endsWith(" DESC") || columnName.endsWith(" RANDOM")) {
                         continue;
                     }
+                }
+            }
+            // Fix missing Primary key columns snapshot id. Not sure it's the best place
+            if("primaryKeyColumns".equals(field)) {
+                Collection<Column> primaryKeyColumns = (Collection<Column>) fieldValue;
+                for (Column primaryKeyColumn : primaryKeyColumns) {
+                    if(primaryKeyColumn.getSnapshotId() == null) {
+                        primaryKeyColumn.setSnapshotId(object.getSnapshotId());
+                    }
+//                    if(primaryKeyColumn.getRelation() != null && primaryKeyColumn.getRelation().getSnapshotId() == null){
+//                        primaryKeyColumn.getRelation().setSnapshotId(object.getSnapshotId());
+//                    }
                 }
             }
             Object newFieldValue = replaceObject(fieldValue);

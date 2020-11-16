@@ -76,7 +76,11 @@ public class MissingViewChangeGenerator extends AbstractChangeGenerator implemen
             change.setFullDefinition(true);
             fullDefinitionOverridden = true;
 
+        } else if (!control.getIncludeSchema()) {
+            // Tries to remove schemas from query
+            selectQuery = selectQuery.replaceAll("((?:FROM|JOIN)\\s+)([^\\s\\.]+)\\.", "$1");
         }
+
         change.setSelectQuery(selectQuery);
         if (!fullDefinitionOverridden) {
             change.setFullDefinition(view.getContainsFullDefinition());

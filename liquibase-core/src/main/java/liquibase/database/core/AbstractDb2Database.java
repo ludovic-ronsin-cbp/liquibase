@@ -13,6 +13,7 @@ import liquibase.database.jvm.JdbcConnection;
 import liquibase.exception.DatabaseException;
 import liquibase.exception.DateParseException;
 import liquibase.executor.ExecutorService;
+import liquibase.statement.DatabaseFunction;
 import liquibase.statement.SqlStatement;
 import liquibase.statement.core.GetViewDefinitionStatement;
 import liquibase.statement.core.RawCallStatement;
@@ -26,6 +27,12 @@ import liquibase.util.StringUtils;
 public abstract class AbstractDb2Database extends AbstractJdbcDatabase {
 
     public AbstractDb2Database() {
+        super.dateFunctions.add(new DatabaseFunction("CURRENT DATE"));
+        super.dateFunctions.add(new DatabaseFunction("CURRENT_DATE"));
+        super.dateFunctions.add(new DatabaseFunction("CURRENT TIME"));
+        super.dateFunctions.add(new DatabaseFunction("CURRENT_TIME"));
+        super.dateFunctions.add(new DatabaseFunction("CURRENT TIMESTAMP"));
+        super.dateFunctions.add(new DatabaseFunction("CURRENT_TIMESTAMP"));
         super.setCurrentDateTimeFunction("CURRENT TIMESTAMP");
         super.sequenceNextValueFunction = "NEXT VALUE FOR %s";
         super.sequenceCurrentValueFunction = "PREVIOUS VALUE FOR %s";
@@ -165,7 +172,8 @@ public abstract class AbstractDb2Database extends AbstractJdbcDatabase {
     public String getViewDefinition(CatalogAndSchema schema, String viewName) throws DatabaseException {
         schema = schema.customize(this);
         String definition = ExecutorService.getInstance().getExecutor(this).queryForObject(new GetViewDefinitionStatement(schema.getCatalogName(), schema.getSchemaName(), viewName), String.class);
-
+        // Removes parentheses englobing the whole query, if any
+        definition = definition.replaceFirst("(?s)^\\(\\s*(.+)\\s*\\)\\s*$", "$1");
         return "FULL_DEFINITION: " + definition;
     }
 
@@ -212,7 +220,8 @@ public abstract class AbstractDb2Database extends AbstractJdbcDatabase {
         if (rawCatalogName != null && rawSchemaName == null) {
             rawSchemaName = rawCatalogName;
         }
-        return new CatalogAndSchema(rawSchemaName, null).customize(this);
+        return new CatalogAndSchema(this.correctObjectName(rawCatalogName, Catalog.class),
+                                    this.correctObjectName(rawSchemaName, Schema.class));
     }
 
     @Override

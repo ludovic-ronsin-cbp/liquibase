@@ -1,7 +1,25 @@
 package liquibase.change.core;
 
+import static java.util.ResourceBundle.getBundle;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.ResourceBundle;
+
 import liquibase.CatalogAndSchema;
-import liquibase.change.*;
+import liquibase.change.AbstractChange;
+import liquibase.change.ChangeMetaData;
+import liquibase.change.ChangeStatus;
+import liquibase.change.ChangeWithColumns;
+import liquibase.change.CheckSum;
+import liquibase.change.ColumnConfig;
+import liquibase.change.DatabaseChange;
+import liquibase.change.DatabaseChangeProperty;
 import liquibase.changelog.ChangeSet;
 import liquibase.database.AbstractJdbcDatabase;
 import liquibase.database.Database;
@@ -38,13 +56,6 @@ import liquibase.util.BooleanParser;
 import liquibase.util.StreamUtil;
 import liquibase.util.StringUtils;
 import liquibase.util.csv.CSVReader;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Reader;
-import java.util.*;
-
-import static java.util.ResourceBundle.getBundle;
 
 @DatabaseChange(name = "loadData",
         description = "Loads data from a CSV file into an existing table. A value of NULL in a cell will be " +
@@ -251,11 +262,13 @@ public class LoadDataChange extends AbstractChange implements ChangeWithColumns<
         this.columns = columns;
     }
 
-    @Override
     public SqlStatement[] generateStatements(Database database) {
+
         boolean databaseSupportsBatchUpdates = false;
         try {
             databaseSupportsBatchUpdates = database.supportsBatchUpdates();
+                    // If file is too big, batchupdates may lead to OOM because it may keep too many ColumnConfig in heap, retained by batchedStatements variable
+//                    && new File(getFile()).length() < 20000000;
         } catch (DatabaseException e) {
             throw new UnexpectedLiquibaseException(e);
         }
@@ -341,6 +354,17 @@ public class LoadDataChange extends AbstractChange implements ChangeWithColumns<
                         valueConfig.setName(columnName);
 
                         if (columnConfig.getType() != null) {
+
+                            try {
+                                LOAD_DATA_TYPE.valueOf(columnConfig.getType());
+                            } catch (IllegalArgumentException e) {
+                                // Corrects invalid type (native type) in changelog.
+                                LiquibaseDataType liquibaseDataType = DataTypeFactory.getInstance().fromDescription(columnConfig.getType(), database);
+                                if (liquibaseDataType != null) {
+                                    columnConfig.setType(liquibaseDataType.getLoadTypeName().toString());
+                                }
+                            }
+
                             if (columnConfig.getType().equalsIgnoreCase(LOAD_DATA_TYPE.BOOLEAN.toString())) {
                                 if ("NULL".equalsIgnoreCase(value.toString())) {
                                     valueConfig.setValue(null);

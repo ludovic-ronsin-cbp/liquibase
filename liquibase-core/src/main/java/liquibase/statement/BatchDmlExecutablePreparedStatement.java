@@ -1,5 +1,10 @@
 package liquibase.statement;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+
 import liquibase.change.ColumnConfig;
 import liquibase.change.core.LoadDataColumnConfig;
 import liquibase.changelog.ChangeSet;
@@ -9,11 +14,6 @@ import liquibase.logging.LogService;
 import liquibase.logging.LogType;
 import liquibase.logging.Logger;
 import liquibase.resource.ResourceAccessor;
-
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Performance-optimised version of {@link ExecutablePreparedStatementBase}. JDBC batching collects several
@@ -47,9 +47,19 @@ public class BatchDmlExecutablePreparedStatement extends ExecutablePreparedState
     @Override
     protected void attachParams(List<ColumnConfig> ignored, PreparedStatement stmt)
             throws SQLException, DatabaseException {
+        int i = 0;
+        boolean needExecute = true;
         for (ExecutablePreparedStatementBase insertStatement : collectedStatements) {
             super.attachParams(insertStatement.getColumns(), stmt);
             stmt.addBatch();
+            if ((i % 1000) == 0) {
+                executePreparedStatement(stmt);
+                stmt.clearBatch();
+                needExecute = i != collectedStatements.size(); // If last statement of batch, nothing remaining to execute
+            }
+        }
+        if (needExecute){
+            executePreparedStatement(stmt);
         }
     }
 
@@ -62,10 +72,10 @@ public class BatchDmlExecutablePreparedStatement extends ExecutablePreparedState
 
     @Override
     protected void executePreparedStatement(PreparedStatement stmt) throws SQLException {
-        int updateCounts[] = stmt.executeBatch();
+        int[] updateCounts = stmt.executeBatch();
         long sumUpdateCounts = 0;
         for (int updateCount : updateCounts) {
-            sumUpdateCounts = updateCount;
+            sumUpdateCounts += updateCount;
         }
         LOG.info(LogType.LOG, String.format("Executing JDBC DML batch was successful. %d operations were executed, %d individual UPDATE events were confirmed by the database.",
                 updateCounts.length, sumUpdateCounts));

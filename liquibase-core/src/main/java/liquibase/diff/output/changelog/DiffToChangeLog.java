@@ -25,6 +25,7 @@ import javax.xml.parsers.ParserConfigurationException;
 
 import liquibase.Scope;
 import liquibase.change.Change;
+import liquibase.change.core.AddForeignKeyConstraintChange;
 import liquibase.change.core.DeleteDataChange;
 import liquibase.change.core.InsertDataChange;
 import liquibase.change.core.LoadDataChange;
@@ -822,6 +823,9 @@ public class DiffToChangeLog {
                         changeSet.setLabels(diffOutputControl.getLabels());
                     }
                     changeSet.addChange(change);
+                    if(change instanceof AddForeignKeyConstraintChange){
+                        changeSet.setRunOrder("last");
+                    }
                     changeSets.add(changeSet);
                 }
             } else {
@@ -831,11 +835,17 @@ public class DiffToChangeLog {
                 if (diffOutputControl.getLabels() != null) {
                     changeSet.setLabels(diffOutputControl.getLabels());
                 }
+                boolean isFkOnlyChangeset = true;
                 for (Change change : changes) {
+                    if(!(change instanceof AddForeignKeyConstraintChange)){
+                        isFkOnlyChangeset = false;
+                    }
                     changeSet.addChange(change);
                 }
+                if (isFkOnlyChangeset) {
+                    changeSet.setRunOrder("last");
+                }
                 changeSets.add(changeSet);
-
             }
         }
     }

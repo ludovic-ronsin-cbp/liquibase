@@ -1,11 +1,16 @@
 package liquibase.serializer;
 
-import liquibase.exception.UnexpectedLiquibaseException;
-
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import liquibase.exception.UnexpectedLiquibaseException;
 
 public class ReflectionSerializer {
 
@@ -35,13 +40,15 @@ public class ReflectionSerializer {
             }
 
             for (Field field : allFields) {
+                if (Modifier.isTransient(field.getModifiers()) || Modifier.isStatic(field.getModifiers())) {
+                    continue;
+                }
                 if ("serialVersionUID".equals(field.getName()) || "serializableFields".equals(field.getName())) {
                     continue;
                 }
                 if (field.isSynthetic() || "$VRc".equals(field.getName())) { //from emma
                     continue;
                 }
-
                 fields.put(field.getName(), field);
                 field.setAccessible(true);
             }

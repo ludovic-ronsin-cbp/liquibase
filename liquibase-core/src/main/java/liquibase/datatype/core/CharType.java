@@ -1,7 +1,12 @@
 package liquibase.datatype.core;
 
+import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.Locale;
+
 import liquibase.change.core.LoadDataChange;
 import liquibase.database.Database;
+import liquibase.database.core.DB2Database;
 import liquibase.database.core.MSSQLDatabase;
 import liquibase.database.core.PostgresDatabase;
 import liquibase.datatype.DataTypeInfo;
@@ -9,10 +14,6 @@ import liquibase.datatype.DatabaseDataType;
 import liquibase.datatype.LiquibaseDataType;
 import liquibase.statement.DatabaseFunction;
 import liquibase.util.StringUtils;
-
-import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.Locale;
 
 @DataTypeInfo(name="char", aliases = {"java.sql.Types.CHAR", "bpchar"}, minParameters = 0, maxParameters = 1, priority = LiquibaseDataType.PRIORITY_DEFAULT)
 public class CharType extends LiquibaseDataType {
@@ -45,8 +46,15 @@ public class CharType extends LiquibaseDataType {
                 return type;
             }
             return super.toDatabaseDataType(database);
+        } else if (database instanceof DB2Database) {
+            Object[] parameters = getParameters();
+            if (parameters.length > 0) {
+                Integer length = Integer.parseInt((String) parameters[0]);
+                if (length > 255) {
+                    return new DatabaseDataType("VARCHAR", length);
+                }
+            }
         }
-
         return super.toDatabaseDataType(database);
     }
 

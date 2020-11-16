@@ -1,16 +1,21 @@
 package liquibase.snapshot.jvm;
 
+import java.sql.DatabaseMetaData;
+import java.sql.SQLException;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import liquibase.CatalogAndSchema;
 import liquibase.database.AbstractJdbcDatabase;
 import liquibase.database.Database;
 import liquibase.database.DatabaseConnection;
-import liquibase.database.core.DB2Database;
 import liquibase.database.core.Db2zDatabase;
 import liquibase.database.core.MSSQLDatabase;
-import liquibase.database.core.OracleDatabase;
-import liquibase.database.jvm.JdbcConnection;
 import liquibase.database.core.MariaDBDatabase;
 import liquibase.database.core.MySQLDatabase;
+import liquibase.database.core.OracleDatabase;
+import liquibase.database.jvm.JdbcConnection;
 import liquibase.diff.compare.DatabaseObjectComparatorFactory;
 import liquibase.exception.DatabaseException;
 import liquibase.snapshot.CachedRow;
@@ -18,13 +23,12 @@ import liquibase.snapshot.DatabaseSnapshot;
 import liquibase.snapshot.InvalidExampleException;
 import liquibase.snapshot.JdbcDatabaseSnapshot;
 import liquibase.structure.DatabaseObject;
-import liquibase.structure.core.*;
-
-import java.sql.DatabaseMetaData;
-import java.sql.SQLException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import liquibase.structure.core.Column;
+import liquibase.structure.core.ForeignKey;
+import liquibase.structure.core.ForeignKeyConstraintType;
+import liquibase.structure.core.Index;
+import liquibase.structure.core.Schema;
+import liquibase.structure.core.Table;
 
 public class ForeignKeySnapshotGenerator extends JdbcSnapshotGenerator {
 
@@ -101,8 +105,10 @@ public class ForeignKeySnapshotGenerator extends JdbcSnapshotGenerator {
                         database.correctObjectName(table.getName(), Table.class), null);
 
                 for (CachedRow row : importedKeyMetadataResultSet) {
-                    ForeignKey fk = new ForeignKey().setName(row.getString("FK_NAME")).setForeignKeyTable(table);
-                    if (seenFks.add(fk.getName())) {
+                    String fk_name = cleanNameFromDatabase(row.getString("FK_NAME"), database);
+                    if (seenFks.add(fk_name)) {
+                        ForeignKey fk = new ForeignKey();
+                        updateForeignKey(fk, fk_name, table, database, snapshot, row);
                         table.getOutgoingForeignKeys().add(fk);
                     }
                 }
@@ -136,92 +142,110 @@ public class ForeignKeySnapshotGenerator extends JdbcSnapshotGenerator {
                         continue;
                     }
                 }
-
                 if (foreignKey == null) {
                     foreignKey = new ForeignKey();
                 }
-
-                foreignKey.setName(fk_name);
-
-                String fkTableCatalog = cleanNameFromDatabase(row.getString(METADATA_FKTABLE_CAT), database);
-                String fkTableSchema = cleanNameFromDatabase(row.getString(METADATA_FKTABLE_SCHEM), database);
-                String fkTableName = cleanNameFromDatabase(row.getString(METADATA_FKTABLE_NAME), database);
-                Table foreignKeyTable = new Table().setName(fkTableName);
-                foreignKeyTable.setSchema(new Schema(new Catalog(fkTableCatalog), fkTableSchema));
-
-                foreignKey.setForeignKeyTable(foreignKeyTable);
-                Column fkColumn = new Column(cleanNameFromDatabase(row.getString(METADATA_FKCOLUMN_NAME), database)).setRelation(foreignKeyTable);
-                boolean alreadyAdded = false;
-                for (Column existing : foreignKey.getForeignKeyColumns()) {
-                    if (DatabaseObjectComparatorFactory.getInstance().isSameObject(existing, fkColumn, snapshot.getSchemaComparisons(), database)) {
-                        alreadyAdded = true; //already added. One is probably an alias
-                    }
-                }
-                if (alreadyAdded) {
-                    break;
-                }
-
-
-                CatalogAndSchema pkTableSchema = ((AbstractJdbcDatabase) database).getSchemaFromJdbcInfo(
-                        row.getString(METADATA_PKTABLE_CAT), row.getString(METADATA_PKTABLE_SCHEM));
-                Table tempPkTable = (Table) new Table().setName(row.getString(METADATA_PKTABLE_NAME)).setSchema(
-                        new Schema(pkTableSchema.getCatalogName(), pkTableSchema.getSchemaName()));
-                foreignKey.setPrimaryKeyTable(tempPkTable);
-                Column pkColumn = new Column(cleanNameFromDatabase(row.getString(METADATA_PKCOLUMN_NAME), database))
-                        .setRelation(tempPkTable);
-
-                foreignKey.addForeignKeyColumn(fkColumn);
-                foreignKey.addPrimaryKeyColumn(pkColumn);
-                //todo foreignKey.setKeySeq(importedKeyMetadataResultSet.getInt("KEY_SEQ"));
-
-                // DB2 on z/OS doesn't support ON UPDATE
-                if (!(database instanceof Db2zDatabase)) {
-                    ForeignKeyConstraintType updateRule = convertToForeignKeyConstraintType(
-                        row.getInt(METADATA_UPDATE_RULE), database);
-                    foreignKey.setUpdateRule(updateRule);
-                }
-                ForeignKeyConstraintType deleteRule = convertToForeignKeyConstraintType(
-                        row.getInt(METADATA_DELETE_RULE), database);
-                foreignKey.setDeleteRule(deleteRule);
-
-                short deferrability;
-                if (((database instanceof MySQLDatabase) && ((MySQLDatabase) database)
-                    .hasBugJdbcConstraintsDeferrable()) || ((database instanceof MariaDBDatabase) && (
-                        (MariaDBDatabase) database).hasBugJdbcConstraintsDeferrable())
-                   )
-                    deferrability = DatabaseMetaData.importedKeyNotDeferrable;
-                else
-                    deferrability = row.getShort(METADATA_DEFERRABILITY);
-
-                // Hsqldb doesn't handle setting this property correctly, it sets it to 0.
-                // it should be set to DatabaseMetaData.importedKeyNotDeferrable(7)
-                if ((deferrability == 0) || (deferrability == DatabaseMetaData.importedKeyNotDeferrable)) {
-                    foreignKey.setDeferrable(false);
-                    foreignKey.setInitiallyDeferred(false);
-                } else if (deferrability == DatabaseMetaData.importedKeyInitiallyDeferred) {
-                    foreignKey.setDeferrable(true);
-                    foreignKey.setInitiallyDeferred(true);
-                } else if (deferrability == DatabaseMetaData.importedKeyInitiallyImmediate) {
-                    foreignKey.setDeferrable(true);
-                    foreignKey.setInitiallyDeferred(false);
-                } else {
-                    throw new RuntimeException("Unknown deferrability result: " + deferrability);
-                }
-                setValidateOptionIfAvailable(database, foreignKey, row);
-
-                Index exampleIndex = new Index().setRelation(foreignKey.getForeignKeyTable());
-                exampleIndex.getColumns().addAll(foreignKey.getForeignKeyColumns());
-                exampleIndex.addAssociatedWith(Index.MARK_FOREIGN_KEY);
-                foreignKey.setBackingIndex(exampleIndex);
+                updateForeignKey(foreignKey, fk_name, fkTable, database, snapshot, row);
 
             }
             if (snapshot.get(ForeignKey.class).contains(foreignKey)) {
                 return null;
             }
+//            fkTable.getOutgoingForeignKeys().add(foreignKey);
             return foreignKey;
         } catch (Exception e) {
             throw new DatabaseException(e);
         }
+    }
+
+    protected void updateForeignKey(ForeignKey foreignKey, String fk_name, Table fkTable, Database database, DatabaseSnapshot snapshot, CachedRow row) throws DatabaseException, SQLException {
+        foreignKey.setName(fk_name);
+
+        String fkTableCatalog = cleanNameFromDatabase(row.getString(METADATA_FKTABLE_CAT), database);
+        String fkTableSchema = cleanNameFromDatabase(row.getString(METADATA_FKTABLE_SCHEM), database);
+        if (fkTableSchema == null) {
+            fkTableSchema = fkTable.getSchema().getName();
+        }
+        String fkTableName = cleanNameFromDatabase(row.getString(METADATA_FKTABLE_NAME), database);
+        Table foreignKeyTable = fkTable;
+//                (fkTableSchema != null)
+//                ? fkTable
+//                : ((JdbcDatabaseSnapshot) snapshot).getMetaDataFromCache().getTables(fkTableCatalog, fkTableSchema, fkTableName).get(0);
+        //                foreignKeyTable.setSchema(new Schema(new Catalog(fkTableCatalog), fkTableSchema));
+//        foreignKeyTable.setSchema(new Schema(new Catalog(fkTableSchema), fkTableSchema));
+
+        foreignKey.setForeignKeyTable(foreignKeyTable);
+        Column fkColumn = new Column(cleanNameFromDatabase(row.getString(METADATA_FKCOLUMN_NAME), database)).setRelation(foreignKeyTable);
+        boolean alreadyAdded = false;
+        for (Column existing : foreignKey.getForeignKeyColumns()) {
+            if (DatabaseObjectComparatorFactory.getInstance().isSameObject(existing, fkColumn, snapshot.getSchemaComparisons(), database)) {
+                alreadyAdded = true; //already added. One is probably an alias
+            }
+        }
+        if (alreadyAdded) {
+            return;
+        }
+
+
+//        CatalogAndSchema pkTableSchema = ((AbstractJdbcDatabase) database).getSchemaFromJdbcInfo(
+//                row.getString(METADATA_PKTABLE_CAT), row.getString(METADATA_PKTABLE_SCHEM));
+        CatalogAndSchema pkTableSchema = ((AbstractJdbcDatabase) database).getSchemaFromJdbcInfo(
+                row.getString(METADATA_PKTABLE_SCHEM), row.getString(METADATA_PKTABLE_SCHEM));
+        //                Table tempPkTable = (Table) new Table().setName(row.getString(METADATA_PKTABLE_NAME)).setSchema(
+        //                        new Schema(pkTableSchema.getCatalogName(), pkTableSchema.getSchemaName()));
+        Table tempPkTable = (Table) new Table().setName(row.getString(METADATA_PKTABLE_NAME)).setSchema(
+                new Schema(pkTableSchema.getSchemaName(), pkTableSchema.getSchemaName()));
+
+//        ((JdbcDatabaseSnapshot) snapshot).getMetaDataFromCache().getTables(pkTableSchema.getCatalogName(), pkTableSchema.getSchemaName(), row.getString(METADATA_PKTABLE_NAME));
+
+        foreignKey.setPrimaryKeyTable(tempPkTable);
+        Column pkColumn = new Column(cleanNameFromDatabase(row.getString(METADATA_PKCOLUMN_NAME), database))
+                .setRelation(tempPkTable);
+
+        foreignKey.addForeignKeyColumn(fkColumn);
+        foreignKey.addPrimaryKeyColumn(pkColumn);
+        //todo foreignKey.setKeySeq(importedKeyMetadataResultSet.getInt("KEY_SEQ"));
+
+        // DB2 on z/OS doesn't support ON UPDATE
+        if (!(database instanceof Db2zDatabase)) {
+            ForeignKeyConstraintType updateRule = convertToForeignKeyConstraintType(
+                    row.getInt(METADATA_UPDATE_RULE), database);
+            foreignKey.setUpdateRule(updateRule);
+        }
+        ForeignKeyConstraintType deleteRule = convertToForeignKeyConstraintType(
+                row.getInt(METADATA_DELETE_RULE), database);
+        foreignKey.setDeleteRule(deleteRule);
+
+        short deferrability;
+        if (((database instanceof MySQLDatabase) && ((MySQLDatabase) database)
+                .hasBugJdbcConstraintsDeferrable()) || ((database instanceof MariaDBDatabase) && (
+                (MariaDBDatabase) database).hasBugJdbcConstraintsDeferrable())
+        )
+            deferrability = DatabaseMetaData.importedKeyNotDeferrable;
+        else
+            deferrability = row.getShort(METADATA_DEFERRABILITY);
+
+        // Hsqldb doesn't handle setting this property correctly, it sets it to 0.
+        // it should be set to DatabaseMetaData.importedKeyNotDeferrable(7)
+        if ((deferrability == 0) || (deferrability == DatabaseMetaData.importedKeyNotDeferrable)) {
+            foreignKey.setDeferrable(false);
+            foreignKey.setInitiallyDeferred(false);
+        } else if (deferrability == DatabaseMetaData.importedKeyInitiallyDeferred) {
+            foreignKey.setDeferrable(true);
+            foreignKey.setInitiallyDeferred(true);
+        } else if (deferrability == DatabaseMetaData.importedKeyInitiallyImmediate) {
+            foreignKey.setDeferrable(true);
+            foreignKey.setInitiallyDeferred(false);
+        } else {
+            throw new RuntimeException("Unknown deferrability result: " + deferrability);
+        }
+        setValidateOptionIfAvailable(database, foreignKey, row);
+
+        Index exampleIndex = new Index().setRelation(foreignKey.getForeignKeyTable());
+        exampleIndex.getColumns().addAll(foreignKey.getForeignKeyColumns());
+        exampleIndex.addAssociatedWith(Index.MARK_FOREIGN_KEY);
+        foreignKey.setBackingIndex(exampleIndex);
+
     }
 
     /**

@@ -1,5 +1,18 @@
 package liquibase.diff.output.changelog.core;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.sql.JDBCType;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
 import liquibase.change.Change;
 import liquibase.change.core.LoadDataChange;
 import liquibase.change.core.LoadDataColumnConfig;
@@ -17,14 +30,6 @@ import liquibase.structure.core.Table;
 import liquibase.util.ISODateFormat;
 import liquibase.util.JdbcUtils;
 import liquibase.util.csv.CSVWriter;
-
-import java.io.*;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
 
 @LiquibaseService(skip = true)
 public class MissingDataExternalFileChangeGenerator extends MissingDataChangeGenerator {
@@ -49,7 +54,7 @@ public class MissingDataExternalFileChangeGenerator extends MissingDataChangeGen
         ResultSet rs = null;
         try (
             Statement stmt = ((JdbcConnection) referenceDatabase.getConnection()).createStatement(
-                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
         )
         {
             Data data = (Data) missingObject;
@@ -153,7 +158,7 @@ public class MissingDataExternalFileChangeGenerator extends MissingDataChangeGen
                     LoadDataColumnConfig columnConfig = new LoadDataColumnConfig();
                     columnConfig.setHeader(colName);
                     columnConfig.setName(colName);
-                    columnConfig.setType(dataTypes[i] != null ? dataTypes[i] : "skip");
+                    columnConfig.setType(JDBCType.valueOf(rs.getMetaData().getColumnType(i + 1)).getName());
 
                     change.addColumn(columnConfig);
                 }

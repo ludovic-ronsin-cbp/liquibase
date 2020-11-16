@@ -1,5 +1,15 @@
 package liquibase.integration.commandline;
 
+import static java.util.ResourceBundle.getBundle;
+
+import java.io.IOException;
+import java.io.PrintStream;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.ResourceBundle;
+
+import javax.xml.parsers.ParserConfigurationException;
+
 import liquibase.CatalogAndSchema;
 import liquibase.command.CommandExecutionException;
 import liquibase.command.CommandFactory;
@@ -25,15 +35,6 @@ import liquibase.statement.core.RawSqlStatement;
 import liquibase.structure.core.Schema;
 import liquibase.util.LiquibaseUtil;
 import liquibase.util.StringUtils;
-
-import javax.xml.parsers.ParserConfigurationException;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.ResourceBundle;
-
-import static java.util.ResourceBundle.getBundle;
 
 /**
  * Common Utility methods used in the CommandLine application and the Maven plugin.
@@ -215,17 +216,19 @@ public class CommandLineUtils {
     public static void doDiffToChangeLog(String changeLogFile,
                                          Database referenceDatabase,
                                          Database targetDatabase,
+                                         String dataDir,
                                          DiffOutputControl diffOutputControl,
                                          ObjectChangeFilter objectChangeFilter,
                                          String snapshotTypes)
             throws LiquibaseException, IOException, ParserConfigurationException {
-        doDiffToChangeLog(changeLogFile, referenceDatabase, targetDatabase, diffOutputControl, objectChangeFilter,
+        doDiffToChangeLog(changeLogFile, referenceDatabase, targetDatabase, dataDir, diffOutputControl, objectChangeFilter,
                 snapshotTypes, null);
     }
 
     public static void doDiffToChangeLog(String changeLogFile,
                                          Database referenceDatabase,
                                          Database targetDatabase,
+                                         String dataDir,
                                          DiffOutputControl diffOutputControl,
                                          ObjectChangeFilter objectChangeFilter,
                                          String snapshotTypes,
@@ -242,6 +245,7 @@ public class CommandLineUtils {
                 .setOutputStream(System.out);
         command.setChangeLogFile(changeLogFile)
                 .setDiffOutputControl(diffOutputControl);
+        diffOutputControl.setDataDir(dataDir);
 
         try {
             command.execute();

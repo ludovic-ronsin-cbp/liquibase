@@ -1,17 +1,20 @@
 package liquibase.datatype.core;
 
-import liquibase.change.core.LoadDataChange;
-import liquibase.database.Database;
-import liquibase.database.core.*;
-import liquibase.datatype.DataTypeInfo;
-import liquibase.datatype.DatabaseDataType;
-import liquibase.datatype.LiquibaseDataType;
-import liquibase.statement.DatabaseFunction;
-
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
+
+import liquibase.change.core.LoadDataChange;
+import liquibase.database.Database;
+import liquibase.database.core.AbstractDb2Database;
+import liquibase.database.core.DerbyDatabase;
+import liquibase.database.core.MSSQLDatabase;
+import liquibase.database.core.OracleDatabase;
+import liquibase.datatype.DataTypeInfo;
+import liquibase.datatype.DatabaseDataType;
+import liquibase.datatype.LiquibaseDataType;
+import liquibase.statement.DatabaseFunction;
 
 @DataTypeInfo(name="date", aliases = {"java.sql.Types.DATE", "java.sql.Date"}, minParameters = 0, maxParameters = 0, priority = LiquibaseDataType.PRIORITY_DEFAULT)
 public class DateType extends LiquibaseDataType {
@@ -36,6 +39,8 @@ public class DateType extends LiquibaseDataType {
             return database.generateDatabaseFunctionValue((DatabaseFunction) value);
         } else if ("CURRENT_TIMESTAMP()".equals(value.toString())) {
               return database.getCurrentDateTimeFunction();
+        } else if (database.isFunction(value.toString())) {
+            return value.toString();
         } else if (value instanceof java.sql.Timestamp) {
             return database.getDateLiteral(((java.sql.Timestamp) value));
         } else if (value instanceof java.sql.Date) {

@@ -1,5 +1,45 @@
 package liquibase.integration.commandline;
 
+import static java.util.ResourceBundle.getBundle;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.Console;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintStream;
+import java.io.Writer;
+import java.lang.reflect.Field;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.text.MessageFormat;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IllegalFormatException;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.ResourceBundle;
+import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+
+import org.slf4j.LoggerFactory;
+
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -18,7 +58,6 @@ import liquibase.changelog.ChangeLogParameters;
 import liquibase.changelog.visitor.ChangeExecListener;
 import liquibase.command.AbstractSelfConfiguratingCommand;
 import liquibase.command.CommandFactory;
-import liquibase.command.CommandResult;
 import liquibase.command.LiquibaseCommand;
 import liquibase.command.core.DropAllCommand;
 import liquibase.command.core.ExecuteSqlCommand;
@@ -31,8 +70,16 @@ import liquibase.diff.compare.CompareControl;
 import liquibase.diff.output.DiffOutputControl;
 import liquibase.diff.output.ObjectChangeFilter;
 import liquibase.diff.output.StandardObjectChangeFilter;
-import liquibase.exception.*;
-import liquibase.license.*;
+import liquibase.exception.CommandLineParsingException;
+import liquibase.exception.DatabaseException;
+import liquibase.exception.LiquibaseException;
+import liquibase.exception.UnexpectedLiquibaseException;
+import liquibase.exception.ValidationFailedException;
+import liquibase.license.LicenseInstallResult;
+import liquibase.license.LicenseService;
+import liquibase.license.LicenseServiceFactory;
+import liquibase.license.Location;
+import liquibase.license.LocationType;
 import liquibase.lockservice.LockService;
 import liquibase.lockservice.LockServiceFactory;
 import liquibase.logging.LogLevel;
@@ -49,22 +96,6 @@ import liquibase.util.LiquibaseUtil;
 import liquibase.util.StringUtils;
 import liquibase.util.xml.XMLResourceBundle;
 import liquibase.util.xml.XmlResourceBundleControl;
-import org.slf4j.LoggerFactory;
-
-import java.io.*;
-import java.lang.reflect.Field;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.text.MessageFormat;
-import java.text.ParseException;
-import java.util.*;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-
-import static java.util.ResourceBundle.getBundle;
 
 /**
  * Class for executing Liquibase via the command line.
@@ -952,12 +983,14 @@ public class Main {
                     }
                 }
             }
-        } else if (COMMANDS.DIFF_CHANGELOG.equalsIgnoreCase(command) && (diffTypes != null) && diffTypes.toLowerCase
-                ().contains("data")) {
-            messages.add(String.format(coreBundle.getString("including.data.diffchangelog.has.no.effect"),
-                    OPTIONS.DIFF_TYPES, COMMANDS.GENERATE_CHANGELOG
-            ));
         }
+        // Code commented to allow diff changelog with data
+//        else if (COMMANDS.DIFF_CHANGELOG.equalsIgnoreCase(command) && (diffTypes != null) && diffTypes.toLowerCase
+//                ().contains("data")) {
+//            messages.add(String.format(coreBundle.getString("including.data.diffchangelog.has.no.effect"),
+//                    OPTIONS.DIFF_TYPES, COMMANDS.GENERATE_CHANGELOG
+//            ));
+//        }
     }
 
     /**
@@ -1379,7 +1412,7 @@ public class Main {
             } else if (COMMANDS.DIFF_CHANGELOG.equalsIgnoreCase(command)) {
                 CommandLineUtils.doDiffToChangeLog(changeLogFile,
                         createReferenceDatabaseFromCommandParams(commandParams, fileOpener),
-                        database,
+                        database, StringUtils.trimToNull(dataOutputDirectory),
                         diffOutputControl, objectChangeFilter, StringUtils.trimToNull(diffTypes), finalSchemaComparisons
                 );
                 return;
